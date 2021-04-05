@@ -39,7 +39,12 @@ public class ServiceTrigger {
         try {
             connection = factory.newConnection();
             channel = connection.createChannel();
-            channel.queueDeclare(DEFAULT_QUEUE_NAME, true, false, false, null);
+            // ⊕ [RabbitMQ tutorial - Work Queues — RabbitMQ](https://www.rabbitmq.com/tutorials/tutorial-two-dotnet.html)
+            // RabbitMQ doesn't allow you to redefine an existing queue with different parameters
+            // and will return an error to any program that tries to do that.
+            // channel.queueDeclare(DEFAULT_QUEUE_NAME, true, false, false, null);
+            // declare queue as durable: 需要是新的未被定义成非durable的队列
+            channel.queueDeclare(DEFAULT_QUEUE_NAME, false, false, false, null);
         } catch (IOException | TimeoutException e) {
             Debug.logError(e, "Connect to rabbitmq fail: "+e.getMessage(), MODULE);
         }

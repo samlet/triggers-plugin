@@ -10,9 +10,21 @@ import java.util.Map;
 
 public class Publisher {
     @SuppressWarnings("unchecked")
-    public static Map<String, Object> publishMessage(DispatchContext dctx, Map<String, ?> context) throws IOException {
+    public static Map<String, Object> publishSimpleMessage(DispatchContext dctx, Map<String, ?> context) throws IOException {
         String msg=(String) context.get("message");
         ServiceTrigger.getInstance().publish(msg);
+        Map<String, Object> response = ServiceUtil.returnSuccess();
+        Map<String,?> resp=UtilMisc.toMap("queue", ServiceTrigger.DEFAULT_QUEUE_NAME);
+        response.put("resp", resp);
+        return response;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static Map<String, Object> publishMessage(DispatchContext dctx, Map<String, ?> context) throws IOException {
+        Map<String,?> payload=(Map<String,?>) context.get("payload");
+        String json = new ObjectMapper().writeValueAsString(payload);
+        ServiceTrigger.getInstance().publish(json);
+
         Map<String, Object> response = ServiceUtil.returnSuccess();
         Map<String,?> resp=UtilMisc.toMap("queue", ServiceTrigger.DEFAULT_QUEUE_NAME);
         response.put("resp", resp);

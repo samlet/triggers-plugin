@@ -27,6 +27,13 @@ under the License.
     <service name="publishMessageCc" engine="java" export="true" validate="false"
              location="com.bluecc.triggers.Publisher" invoke="publishMessage">
         <description>Publish message to message bus</description>
+        <attribute name="payload" type="Map" mode="IN" optional="true"/>
+        <attribute name="resp" type="Map" mode="OUT"/>
+    </service>
+
+    <service name="publishSimpleMessageCc" engine="java" export="true" validate="false"
+             location="com.bluecc.triggers.Publisher" invoke="publishSimpleMessage">
+        <description>Publish message to message bus</description>
         <attribute name="message" type="String" mode="IN" optional="true"/>
         <attribute name="resp" type="Map" mode="OUT"/>
     </service>

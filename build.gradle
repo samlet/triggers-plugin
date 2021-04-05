@@ -18,7 +18,7 @@
  */
 
 dependencies {
-    pluginLibsCompile 'com.rabbitmq:amqp-client:5.7.1'
+    pluginLibsCompile 'com.rabbitmq:amqp-client:5.11.0'
     pluginLibsCompile 'com.orbitz.consul:consul-client:1.5.1'
 
     //pluginLibsCompile 'junit:junit-dep:4.10'
