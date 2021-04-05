@@ -24,10 +24,19 @@ under the License.
     <vendor></vendor>
     <version>1.0</version>
 
-    <service name="noSyntaxError" engine="interface">
-        <description>
-            Dummy service to prevent empty files and syntax error - Remove when the 1st real service will be added here 
-        </description>
-    </service> 
+    <service name="publishMessageCc" engine="java" export="true" validate="false"
+             location="com.bluecc.triggers.Publisher" invoke="publishMessage">
+        <description>Publish message to message bus</description>
+        <attribute name="message" type="String" mode="IN" optional="true"/>
+        <attribute name="resp" type="Map" mode="OUT"/>
+    </service>
+
+    <service name="publishDataCc" engine="java" export="true" validate="false"
+             location="com.bluecc.triggers.Publisher" invoke="publishData">
+        <description>Publish data to consul</description>
+        <attribute name="key" type="String" mode="IN" optional="false"/>
+        <attribute name="payload" type="Map" mode="IN" optional="false"/>
+    </service>
     
 </services>
+
