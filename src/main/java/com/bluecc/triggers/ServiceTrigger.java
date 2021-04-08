@@ -1,5 +1,6 @@
 package com.bluecc.triggers;
 
+import com.adapters.srv.ProcContext;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
@@ -23,7 +24,7 @@ public class ServiceTrigger {
         return INSTANCE;
     }
 
-    public static final String DEFAULT_QUEUE_NAME = "task_queue";
+    public static final String DEFAULT_QUEUE_NAME = "ink_queue";
     private final ConnectionFactory factory;
 
     Connection connection=null;
@@ -44,7 +45,7 @@ public class ServiceTrigger {
             // and will return an error to any program that tries to do that.
             // channel.queueDeclare(DEFAULT_QUEUE_NAME, true, false, false, null);
             // declare queue as durable: 需要是新的未被定义成非durable的队列
-            channel.queueDeclare(DEFAULT_QUEUE_NAME, false, false, false, null);
+            channel.queueDeclare(DEFAULT_QUEUE_NAME, true, false, false, null);
         } catch (IOException | TimeoutException e) {
             Debug.logError(e, "Connect to rabbitmq fail: "+e.getMessage(), MODULE);
         }
@@ -57,6 +58,14 @@ public class ServiceTrigger {
                     message.getBytes(StandardCharsets.UTF_8));
             Debug.logInfo(" [x] Sent '" + message + "'", MODULE);
         }
+    }
+
+    public void fire(ProcContext ctx){
+        Debug.logInfo("fire on service invoke: "+ctx.getService().getName(), MODULE);
+    }
+
+    public void succ(ProcContext ctx) {
+        Debug.logInfo("succ on service invoke: "+ctx.getService().getName(), MODULE);
     }
 }
 
