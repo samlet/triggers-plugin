@@ -50,4 +50,11 @@ under the License.
         location="webapp/triggers"
         base-permission="OFBTOOLS,TRIGGERS"
         mount-point="/triggers"/>
+
+    <container name="hubs" loaders="main" class="com.bluecc.triggers.Hubs">
+        <property name="bound-name" value="Hubs"/>
+        <property name="bound-host" value="0.0.0.0"/>
+        <property name="bound-port" value="9999"/>
+        <property name="delegator-name" value="default"/>
+    </container>
 </ofbiz-component>
