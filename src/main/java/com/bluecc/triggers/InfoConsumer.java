@@ -5,9 +5,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.ofbiz.base.util.Debug;
+import org.yaml.snakeyaml.Yaml;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -31,7 +34,7 @@ public class InfoConsumer implements Runnable{
     }
 
     boolean stop=false;
-
+    Yaml yaml=new Yaml();
     public InfoConsumer(String... topics) {
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_SERVER_URL + ":" + KAFKA_SERVER_PORT);
@@ -57,6 +60,32 @@ public class InfoConsumer implements Runnable{
             for (ConsumerRecord<String, String> record : records) {
                 Debug.logInfo("Received message: (" + record.key() + ", "
                         + record.value() + ") at offset " + record.offset(), MODULE);
+                try {
+                    Object values = yaml.load(record.value());
+                    System.out.println(values);
+                    if(values instanceof Map){
+                        System.out.println("keys: "+((Map<?, ?>) values).keySet());
+                        Object valueType=((Map<?, ?>) values)
+                                .values().stream().findFirst().get();
+                        System.out.println("values type: " +valueType
+                                .getClass().getName());
+                        if(valueType instanceof List){
+                            String fn=((Map<?, ?>) values).keySet().stream().findFirst().get().toString();
+                            Debug.logInfo("invoke %s with %s", MODULE, fn, valueType);
+                            Object result=Hubs.HUBS.process(fn, valueType);
+                            System.out.println(">> invoke result: "+result);
+                        }
+                    }else if(values instanceof List){
+                        System.out.println("list: "+values);
+                    }else if(values instanceof String){
+                        System.out.println("string: "+values);
+                    }else{
+                        System.out.println("skip value: "+values);
+                    }
+                }catch (RuntimeException e){
+                    Debug.logError(e, e.getMessage(), MODULE);
+                }
+
             }
         }
     }
@@ -64,6 +93,7 @@ public class InfoConsumer implements Runnable{
     public void serve(){
         executor.submit(() -> {
             run();
+            Debug.logInfo(".. consumer end.", MODULE);
             return null;
         });
     }
