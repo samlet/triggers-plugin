@@ -44,5 +44,14 @@ public class SysFnTest {
         List<String> rs = (List<String>) subscribers.get("uppercase")
                 .apply(Lists.newArrayList("hello", "world"));
         rs.forEach(e -> System.out.println(e));
+
+        rs = (List<String>) subscribers.get("camelcase")
+                .apply(Lists.newArrayList("hello_world"));
+        rs.forEach(e -> System.out.println(e));
+
+        rs = (List<String>) subscribers.get("uppercase")
+                .andThen(subscribers.get("camelcase"))
+                .apply(Lists.newArrayList("hello_world", "hi, samlet"));
+        rs.forEach(e -> System.out.println(e));
     }
 }

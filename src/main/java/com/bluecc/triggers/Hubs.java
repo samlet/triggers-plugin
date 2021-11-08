@@ -27,7 +27,8 @@ public class Hubs extends SrvBase {
     public boolean start() throws ContainerException {
         HUBS = this;
 
-        infoConsumer = new InfoConsumer("sagasConsumer");
+        // infoConsumer = new InfoConsumer("sagasConsumer");
+        infoConsumer = new InfoConsumer("sagas");
         infoConsumer.serve();
 
         initFuncs();
@@ -45,6 +46,9 @@ public class Hubs extends SrvBase {
     }
 
     public Object process(String procName, Object message) {
+        if (procName.contains("|")) {
+            return processFilter(procName.split("\\|"), message);
+        }
         Function<Object, Object> proc = subscribers.get(procName);
         if (proc != null) {
             return proc.apply(message);
@@ -52,6 +56,22 @@ public class Hubs extends SrvBase {
             Debug.logWarning("Cannot handle " + procName, MODULE);
         }
         return new EventResponse<>("fail", null);
+    }
+
+    public Object processFilter(String[] procs, Object message) {
+        Function<Object, Object> proc = subscribers.get(procs[0]);
+        if (proc == null) {
+            throw new RuntimeException("Cannot find function " + procs[0]);
+        }
+        for (int i = 1; i < procs.length; ++i) {
+            Function<Object, Object> nextProc = subscribers.get(procs[i]);
+            if (nextProc != null) {
+                proc = proc.andThen(nextProc);
+            } else {
+                throw new RuntimeException("Cannot find function " + procs[i]);
+            }
+        }
+        return proc.apply(message);
     }
 
     private void initFuncs() {
@@ -62,18 +82,21 @@ public class Hubs extends SrvBase {
         };
         subscribe("echo", proc);
 
-        registerFn(new SysFn());
+        registerFn(new SysFn(),
+                new PartyFn());
     }
 
-    private void registerFn(Object fn) {
-        for (Method method : fn.getClass().getDeclaredMethods()) {
-            if (method.isAnnotationPresent(Bean.class)) {
-                Function<Object, Object> proc = null;
-                try {
-                    proc = (Function<Object, Object>) method.invoke(fn);
-                    subscribers.put(method.getName(), proc);
-                } catch (IllegalAccessException | InvocationTargetException e) {
-                    throw new RuntimeException("Cannot register fn " + method.getName());
+    private void registerFn(Object... fnList) {
+        for (Object fn : fnList) {
+            for (Method method : fn.getClass().getDeclaredMethods()) {
+                if (method.isAnnotationPresent(Bean.class)) {
+                    Function<Object, Object> proc = null;
+                    try {
+                        proc = (Function<Object, Object>) method.invoke(fn);
+                        subscribers.put(method.getName(), proc);
+                    } catch (IllegalAccessException | InvocationTargetException e) {
+                        throw new RuntimeException("Cannot register fn " + method.getName());
+                    }
                 }
             }
         }
