@@ -1,6 +1,7 @@
 package com.bluecc.triggers;
 
 import com.drafts.generic.Stack;
+import org.apache.ofbiz.base.util.GeneralRuntimeException;
 import org.apache.ofbiz.entity.DelegatorFactory;
 import org.apache.ofbiz.entity.GenericDelegator;
 import org.apache.ofbiz.entity.GenericEntityException;
@@ -33,6 +34,16 @@ public class FnBase {
         return EntityQuery.use(getDelegator()).from("UserLogin")
                 .where("userLoginId", "system")
                 .cache().queryOne();
+    }
+
+    public GenericValue getUserLogin(String userLoginId)  {
+        try {
+            return EntityQuery.use(getDelegator()).from("UserLogin")
+                    .where("userLoginId", userLoginId)
+                    .cache().queryOne();
+        } catch (GenericEntityException e) {
+            throw new GeneralRuntimeException(e.getMessage(), e);
+        }
     }
 
     public EntityQuery from(String entityName){

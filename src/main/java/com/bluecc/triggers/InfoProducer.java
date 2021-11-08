@@ -75,7 +75,7 @@ class KafkaCallBack implements Callback {
     public void onCompletion(RecordMetadata metadata, Exception exception) {
         long elapsedTime = System.currentTimeMillis() - startTime;
         if (metadata != null) {
-            Debug.logInfo(
+            Debug.logVerbose(
                     "message(" + key + ", " + message + ") sent to partition(" + metadata.partition() +
                             "), " +
                             "offset(" + metadata.offset() + ") in " + elapsedTime + " ms", MODULE);

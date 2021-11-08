@@ -3,6 +3,8 @@ package com.bluecc.triggers;
 import com.bluecc.generic.Helper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import lombok.Builder;
+import lombok.Data;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -22,7 +24,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class InfoConsumer implements Runnable {
     private static final String MODULE = InfoConsumer.class.getName();
     private final KafkaConsumer<String, String> consumer;
-    private final String[] topics;
+    // private final String[] topics;
 
     public static final String KAFKA_SERVER_URL = "localhost";
     public static final int KAFKA_SERVER_PORT = 9092;
@@ -47,7 +49,27 @@ public class InfoConsumer implements Runnable {
             .setPrettyPrinting()
             .create();
 
-    public InfoConsumer(String... topics) {
+    @Data
+    @Builder
+    public static class InforConfig {
+        String[] subscribeTopics;
+        String sinkTopic;
+    }
+
+    @Data
+    @Builder
+    public static class ResultData {
+        String resultStatus;
+        String caller;
+        Object data;
+    }
+
+    InforConfig config;
+    InfoProducer producer;
+
+    public InfoConsumer(InforConfig config) {
+        this.config = config;
+
         Properties props = new Properties();
         props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_SERVER_URL + ":" + KAFKA_SERVER_PORT);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, CLIENT_ID);
@@ -58,8 +80,8 @@ public class InfoConsumer implements Runnable {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
 
         consumer = new KafkaConsumer<>(props);
-        this.topics = topics;
-
+        // this.topics = topics;
+        producer = new InfoProducer(config.getSinkTopic(), true);
         executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(2);
     }
 
@@ -68,7 +90,7 @@ public class InfoConsumer implements Runnable {
         while (!stop) {
             try {
                 // System.out.print(".");
-                consumer.subscribe(Arrays.asList(this.topics));
+                consumer.subscribe(Arrays.asList(this.config.subscribeTopics));
                 // ConsumerRecords<Integer, String> records = consumer.poll(1000);
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(200));
                 // ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
@@ -89,7 +111,13 @@ public class InfoConsumer implements Runnable {
                         String fn = ((Map<?, ?>) values).keySet().stream().findFirst().get().toString();
                         Debug.logInfo("invoke %s with %s", MODULE, fn, valueType);
                         Object result = Hubs.HUBS.process(fn, valueType);
-                        System.out.println(">> invoke result: " + gson.toJson(result));
+                        String resultJson = gson.toJson(ResultData.builder()
+                                .resultStatus("ok")
+                                .caller(fn)
+                                .data(result)
+                                .build());
+                        System.out.println(">> invoke result: " + resultJson);
+                        producer.send(resultJson);
                     } else if (values instanceof List) {
                         System.out.println("list: " + values);
                     } else if (values instanceof String) {

@@ -28,7 +28,10 @@ public class Hubs extends SrvBase {
         HUBS = this;
 
         // infoConsumer = new InfoConsumer("sagasConsumer");
-        infoConsumer = new InfoConsumer("sagas");
+        infoConsumer = new InfoConsumer(InfoConsumer.InforConfig.builder()
+                .subscribeTopics(new String[]{"sagas"})
+                .sinkTopic("sagasEvent")
+                .build());
         infoConsumer.serve();
 
         initFuncs();
@@ -83,7 +86,9 @@ public class Hubs extends SrvBase {
         subscribe("echo", proc);
 
         registerFn(new SysFn(),
-                new PartyFn());
+                new PartyFn(),
+                new OrderFn()
+        );
     }
 
     private void registerFn(Object... fnList) {
