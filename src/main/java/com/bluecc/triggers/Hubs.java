@@ -1,9 +1,11 @@
 package com.bluecc.triggers;
 
 import com.bluecc.generic.EventResponse;
+import com.bluecc.generic.Helper;
 import com.bluecc.pay.SrvBase;
-import com.bluecc.pay.SrvRoutines;
 import com.google.common.collect.Maps;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.ofbiz.base.container.ContainerException;
@@ -14,12 +16,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.List;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.logging.Logger;
-
-import static com.bluecc.generic.Helper.GSON;
 
 public class Hubs extends SrvBase {
     private static final String MODULE = Hubs.class.getName();
@@ -35,6 +34,13 @@ public class Hubs extends SrvBase {
     InfoConsumer infoConsumer;
     public static Hubs HUBS;
     Map<String, FireProc> subscribers = Maps.newConcurrentMap();
+    public static final Gson gson = new GsonBuilder()
+            // .setFieldNamingPolicy(LOWER_CASE_WITH_UNDERSCORES)
+            .setDateFormat("yyyy-MM-dd HH:mm:ss")
+//            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+            .registerTypeAdapter(LocalDateTime.class, new Helper.LocalDateTimeAdapter().nullSafe())
+            .setPrettyPrinting()
+            .create();
 
     @Override
     public boolean start() throws ContainerException {
@@ -65,7 +71,7 @@ public class Hubs extends SrvBase {
         FireProc proc = subscribers.get(procName);
         if (proc != null) {
             Type inputType=proc.typeArguments[0];
-            return process(procName, GSON.fromJson(message, inputType));
+            return process(procName, gson.fromJson(message, inputType));
         } else {
             throw new RuntimeException("Cannot find function " + procName);
         }
@@ -111,7 +117,8 @@ public class Hubs extends SrvBase {
 
         registerFn(new SysFn(),
                 new PartyFn(),
-                new OrderFn()
+                new OrderFn(),
+                new ServiceFn()
         );
     }
 

@@ -77,7 +77,7 @@ public class Helper {
     }
 
     public static final Gson GSON = new GsonBuilder()
-            .setFieldNamingPolicy(LOWER_CASE_WITH_UNDERSCORES)
+            // .setFieldNamingPolicy(LOWER_CASE_WITH_UNDERSCORES)
             .setDateFormat("yyyy-MM-dd HH:mm:ss")
 //            .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
             .registerTypeAdapter(LocalDateTime.class, new LocalDateTimeAdapter().nullSafe())
