@@ -6,10 +6,16 @@ import com.bluecc.pay.SrvBase;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.inject.AbstractModule;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.ofbiz.base.container.ContainerException;
 import org.apache.ofbiz.base.util.Debug;
+import org.reflections.Reflections;
+import org.reflections.scanners.MethodAnnotationsScanner;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 
 import java.lang.reflect.InvocationTargetException;
@@ -18,6 +24,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 
 public class Hubs extends SrvBase {
@@ -34,6 +41,7 @@ public class Hubs extends SrvBase {
     InfoConsumer infoConsumer;
     public static Hubs HUBS;
     Map<String, FireProc> subscribers = Maps.newConcurrentMap();
+    Injector injector;
     public static final Gson gson = new GsonBuilder()
             // .setFieldNamingPolicy(LOWER_CASE_WITH_UNDERSCORES)
             .setDateFormat("yyyy-MM-dd HH:mm:ss")
@@ -45,6 +53,12 @@ public class Hubs extends SrvBase {
     @Override
     public boolean start() throws ContainerException {
         HUBS = this;
+        injector= Guice.createInjector(new AbstractModule() {
+            @Override
+            protected void configure() {
+                super.configure();
+            }
+        });
 
         // infoConsumer = new InfoConsumer("sagasConsumer");
         infoConsumer = new InfoConsumer(InfoConsumer.InforConfig.builder()
@@ -54,6 +68,7 @@ public class Hubs extends SrvBase {
         infoConsumer.serve();
 
         initFuncs();
+
         System.out.println(" [✔] Hubs started");
         return true;
     }
@@ -107,6 +122,7 @@ public class Hubs extends SrvBase {
         return fn.apply(message);
     }
 
+    private static ApplicationContext applicationContext;
     private void initFuncs() {
         // >echo: [samlet, 18]
         // Function<Object, Object> proc = f -> {
@@ -114,35 +130,63 @@ public class Hubs extends SrvBase {
         //     return new EventResponse<>("ok", null);
         // };
         // subscribe("echo", proc);
+        // applicationContext =
+        //         new AnnotationConfigApplicationContext(Hubs.class);
+        // for (String beanName : applicationContext.getBeanDefinitionNames()) {
+        //     System.out.println("\t- "+beanName);
+        // }
 
-        registerFn(new SysFn(),
-                new PartyFn(),
-                new OrderFn(),
-                new ServiceFn()
-        );
+        for (Method m : getFunctions()) {
+            String returnType=m.getReturnType().getName();
+            System.out.format("- %s.%s -> %s\n",
+                    m.getDeclaringClass().getName(),
+                    m.getName(),
+                    returnType);
+            if(returnType.equals("java.util.function.Function")){
+                System.out.println(".. register fn - "+m.getName());
+                registerMethod(injector.getInstance(m.getDeclaringClass()), m);
+            }
+        }
+
+        // registerFn(new SysFn(),
+        //         new PartyFn(),
+        //         new OrderFn(),
+        //         new ServiceFn()
+        // );
+    }
+
+    private Set<Method> getFunctions() {
+        Reflections reflections = new Reflections(
+                "com.bluecc.triggers",
+                new MethodAnnotationsScanner());
+        return reflections.getMethodsAnnotatedWith(Bean.class);
     }
 
     private void registerFn(Object... fnList) {
         for (Object fn : fnList) {
             for (Method method : fn.getClass().getDeclaredMethods()) {
                 if (method.isAnnotationPresent(Bean.class)) {
-                    Function<Object, Object> proc;
-                    try {
-                        Type genericReturnType = method.getGenericReturnType();
-                        Type[] actualTypeArguments = null;
-                        if (genericReturnType instanceof ParameterizedType) {
-                            actualTypeArguments = ((ParameterizedType) genericReturnType).getActualTypeArguments();
-                        }
-                        proc = (Function<Object, Object>) method.invoke(fn);
-                        subscribers.put(method.getName(), FireProc.builder()
-                                .fn(proc)
-                                .typeArguments(actualTypeArguments)
-                                .build());
-                    } catch (IllegalAccessException | InvocationTargetException e) {
-                        throw new RuntimeException("Cannot register fn " + method.getName());
-                    }
+                    registerMethod(fn, method);
                 }
             }
+        }
+    }
+
+    private void registerMethod(Object fn, Method method) {
+        Function<Object, Object> proc;
+        try {
+            Type genericReturnType = method.getGenericReturnType();
+            Type[] actualTypeArguments = null;
+            if (genericReturnType instanceof ParameterizedType) {
+                actualTypeArguments = ((ParameterizedType) genericReturnType).getActualTypeArguments();
+            }
+            proc = (Function<Object, Object>) method.invoke(fn);
+            subscribers.put(method.getName(), FireProc.builder()
+                    .fn(proc)
+                    .typeArguments(actualTypeArguments)
+                    .build());
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new RuntimeException("Cannot register fn " + method.getName());
         }
     }
 }
