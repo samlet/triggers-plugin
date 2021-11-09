@@ -2,6 +2,7 @@ package com.bluecc.triggers;
 
 import com.bluecc.generic.EventResponse;
 import com.google.common.base.CaseFormat;
+import lombok.Data;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -52,6 +53,15 @@ public class SysFn {
     // >commands: verbose
     @Bean
     Function<String, List<String>> commands(){
+        return level -> new ArrayList<>(Hubs.HUBS.subscribers.keySet());
+    }
+
+    @Data
+    public static class RequestInfo{
+        String name;
+    }
+    @Bean
+    Function<RequestInfo, List<String>> request(){
         return level -> new ArrayList<>(Hubs.HUBS.subscribers.keySet());
     }
 }

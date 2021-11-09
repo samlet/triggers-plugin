@@ -9,9 +9,11 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.header.Header;
 import org.apache.ofbiz.base.util.Debug;
 import org.yaml.snakeyaml.Yaml;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -98,32 +100,60 @@ public class InfoConsumer implements Runnable {
                 for (ConsumerRecord<String, String> record : records) {
                     Debug.logInfo("Received message: (" + record.key() + ", "
                             + record.value() + ") at offset " + record.offset(), MODULE);
-                    // Debug.logInfo(".. with header: %s", MODULE, record.headers());
-                    Object values = yaml.load(record.value());
-                    System.out.println(values);
-                    if (values instanceof Map) {
-                        System.out.println("keys: " + ((Map<?, ?>) values).keySet());
-                        Object valueType = ((Map<?, ?>) values)
-                                .values().stream().findFirst().get();
-                        System.out.println("values type: " + valueType
-                                .getClass().getName());
-                        // if(valueType instanceof List){
-                        String fn = ((Map<?, ?>) values).keySet().stream().findFirst().get().toString();
-                        Debug.logInfo("invoke %s with %s", MODULE, fn, valueType);
-                        Object result = Hubs.HUBS.process(fn, valueType);
-                        String resultJson = gson.toJson(ResultData.builder()
-                                .resultStatus("ok")
-                                .caller(fn)
-                                .data(result)
-                                .build());
-                        System.out.println(">> invoke result: " + resultJson);
-                        producer.send(resultJson);
-                    } else if (values instanceof List) {
-                        System.out.println("list: " + values);
-                    } else if (values instanceof String) {
-                        System.out.println("string: " + values);
-                    } else {
-                        System.out.println("skip value: " + values);
+                    Debug.logInfo(".. with header: %s", MODULE, record.headers());
+                    String cntType="text/yaml";
+                    String dataType="String";
+                    String fn="";
+                    for (Header header : record.headers()) {
+                        if (header.key().equals("type") ) {
+                            String val = new String(header.value(), StandardCharsets.UTF_8);
+                            System.out.format("\t%s = %s\n", header.key(), val);
+
+                            cntType=val;
+                        }
+                        if(header.key().equals("contentType")){
+                            String val = new String(header.value(), StandardCharsets.UTF_8);
+                            System.out.format("\t%s = %s\n", header.key(), val);
+                        }
+                        if(header.key().equals("dataType")){
+                            dataType = new String(header.value(), StandardCharsets.UTF_8);
+                            System.out.format("\t%s = %s\n", header.key(), dataType);
+                        }
+                        if(header.key().equals("fn")){
+                            fn = new String(header.value(), StandardCharsets.UTF_8);
+                            System.out.format("\t%s = %s\n", header.key(), dataType);
+                        }
+                    }
+
+                    if(cntType.equals("text/yaml")) {
+                        Object values = yaml.load(record.value());
+                        System.out.println(values);
+                        if (values instanceof Map) {
+                            System.out.println("keys: " + ((Map<?, ?>) values).keySet());
+                            Object valueType = ((Map<?, ?>) values)
+                                    .values().stream().findFirst().get();
+                            System.out.println("values type: " + valueType
+                                    .getClass().getName());
+                            // if(valueType instanceof List){
+                            fn = ((Map<?, ?>) values).keySet().stream().findFirst().get().toString();
+                            Debug.logInfo("invoke %s with %s", MODULE, fn, valueType);
+                            Object result = Hubs.HUBS.process(fn, valueType);
+                            sendResult(fn, result);
+                        } else if (values instanceof List) {
+                            System.out.println("list: " + values);
+                        } else if (values instanceof String) {
+                            System.out.println("string: " + values);
+                        } else {
+                            System.out.println("skip value: " + values);
+                        }
+                    }else if(cntType.equals("application/json")){
+                        System.out.println(record.value());
+                        if(!fn.isEmpty()){
+                            Object result = Hubs.HUBS.processRaw(fn, record.value());
+                            sendResult(fn, result);
+                        }
+                    }else{
+                        Debug.logWarning("Cannot handle content-type %s", MODULE, cntType);
                     }
                 }
 
@@ -134,6 +164,16 @@ public class InfoConsumer implements Runnable {
 
         consumer.close();
         System.out.println(".. Oops, stop info-consumer");
+    }
+
+    private void sendResult(String fn, Object result) {
+        String resultJson = gson.toJson(ResultData.builder()
+                .resultStatus("ok")
+                .caller(fn)
+                .data(result)
+                .build());
+        System.out.println(">> invoke result: " + resultJson);
+        producer.send(resultJson);
     }
 
     public void serve() {

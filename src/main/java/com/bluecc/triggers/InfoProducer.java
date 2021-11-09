@@ -6,6 +6,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.ofbiz.base.util.Debug;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
@@ -36,8 +37,10 @@ public class InfoProducer {
         long messageNumber = messageNo.getAndIncrement();
         if (isAsync) { // Send asynchronously
             long startTime = System.currentTimeMillis();
-            producer.send(new ProducerRecord<String, String>(topic,
-                            Long.toString(messageNumber), messageStr),
+            ProducerRecord<String, String> rec = new ProducerRecord<>(topic,
+                    Long.toString(messageNumber), messageStr);
+            rec.headers().add("serial", Long.toString(messageNumber).getBytes(StandardCharsets.UTF_8));
+            producer.send(rec,
                     new KafkaCallBack(startTime, messageNumber, messageStr));
         } else { // Send synchronously
             try {
