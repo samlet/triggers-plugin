@@ -1,7 +1,9 @@
 package com.bluecc.triggers;
 
+import com.bluecc.generic.EntityModels;
 import com.bluecc.generic.EventResponse;
 import com.bluecc.generic.Helper;
+import com.bluecc.generic.ServiceModels;
 import com.bluecc.pay.SrvBase;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -14,6 +16,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.apache.ofbiz.base.container.ContainerException;
 import org.apache.ofbiz.base.util.Debug;
+import org.apache.ofbiz.base.util.GeneralRuntimeException;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 import org.reflections.scanners.TypeAnnotationsScanner;
@@ -209,6 +212,17 @@ public class Hubs extends SrvBase {
                     .build());
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException("Cannot register fn " + method.getName());
+        }
+    }
+
+    public static Object getComponent(String name){
+        switch (name){
+            case "models": return HUBS.injector.getInstance(EntityModels.class);
+            case "services": return HUBS.injector.getInstance(ServiceModels.class);
+            case "consumer": return HUBS.infoConsumer;
+            case "producer": return HUBS.infoConsumer.getProducer();
+            default:
+                throw new GeneralRuntimeException("No such component "+name);
         }
     }
 }

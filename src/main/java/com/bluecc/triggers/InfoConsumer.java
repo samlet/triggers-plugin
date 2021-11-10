@@ -67,6 +67,11 @@ public class InfoConsumer implements Runnable {
     }
 
     InforConfig config;
+
+    public InfoProducer getProducer() {
+        return producer;
+    }
+
     InfoProducer producer;
 
     public InfoConsumer(InforConfig config) {
