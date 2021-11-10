@@ -3,6 +3,7 @@ package com.bluecc.triggers;
 import com.bluecc.generic.EventResponse;
 import com.bluecc.generic.Helper;
 import com.bluecc.pay.SrvBase;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -15,8 +16,10 @@ import org.apache.ofbiz.base.container.ContainerException;
 import org.apache.ofbiz.base.util.Debug;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
+import org.reflections.scanners.TypeAnnotationsScanner;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -136,16 +139,8 @@ public class Hubs extends SrvBase {
         //     System.out.println("\t- "+beanName);
         // }
 
-        for (Method m : getFunctions()) {
-            String returnType=m.getReturnType().getName();
-            System.out.format("- %s.%s -> %s\n",
-                    m.getDeclaringClass().getName(),
-                    m.getName(),
-                    returnType);
-            if(returnType.equals("java.util.function.Function")){
-                System.out.println(".. register fn - "+m.getName());
-                registerMethod(injector.getInstance(m.getDeclaringClass()), m);
-            }
+        for(Class<?> clz: getConfigInterfaces()){
+            registerFn(injector.getInstance(clz));
         }
 
         // registerFn(new SysFn(),
@@ -155,6 +150,25 @@ public class Hubs extends SrvBase {
         // );
     }
 
+    public Set<Class<?>> getConfigInterfaces() {
+        Reflections reflections = new Reflections("com.bluecc.triggers",
+                new TypeAnnotationsScanner());
+        return reflections.getTypesAnnotatedWith(Configuration.class);
+    }
+
+    void scanMethods(){
+        for (Method m : getFunctions()) {
+            String returnType=m.getReturnType().getName();
+            // System.out.format("- %s.%s -> %s\n",
+            //         m.getDeclaringClass().getName(),
+            //         m.getName(),
+            //         returnType);
+            if(returnType.equals("java.util.function.Function")){
+                System.out.println(".. register fn - "+m.getName());
+                registerMethod(injector.getInstance(m.getDeclaringClass()), m);
+            }
+        }
+    }
     private Set<Method> getFunctions() {
         Reflections reflections = new Reflections(
                 "com.bluecc.triggers",
@@ -173,6 +187,14 @@ public class Hubs extends SrvBase {
     }
 
     private void registerMethod(Object fn, Method method) {
+        String returnType=method.getReturnType().getSimpleName();
+        System.out.format("\t- %s: %s -> %s\n",
+                method.getDeclaringClass().getSimpleName(),
+                method.getName(),
+                returnType);
+        Preconditions.checkArgument(returnType.equals("Function"),
+                "Only register function with Bean annotation");
+
         Function<Object, Object> proc;
         try {
             Type genericReturnType = method.getGenericReturnType();
