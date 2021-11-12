@@ -14,7 +14,9 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import lombok.Builder;
 import lombok.Data;
+import org.apache.ofbiz.base.container.ContainerConfig;
 import org.apache.ofbiz.base.container.ContainerException;
+import org.apache.ofbiz.base.start.StartupCommand;
 import org.apache.ofbiz.base.util.Debug;
 import org.apache.ofbiz.base.util.GeneralRuntimeException;
 import org.reflections.Reflections;
@@ -29,6 +31,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -48,6 +51,9 @@ public class Hubs extends SrvBase {
     public static Hubs HUBS;
     Map<String, FireProc> subscribers = Maps.newConcurrentMap();
     Injector injector;
+    ContainerConfig.Configuration.Property consumeProp;
+    ContainerConfig.Configuration.Property produceProp;
+
     public static final Gson gson = new GsonBuilder()
             // .setFieldNamingPolicy(LOWER_CASE_WITH_UNDERSCORES)
             .setDateFormat("yyyy-MM-dd HH:mm:ss")
@@ -55,6 +61,13 @@ public class Hubs extends SrvBase {
             .registerTypeAdapter(LocalDateTime.class, new Helper.LocalDateTimeAdapter().nullSafe())
             .setPrettyPrinting()
             .create();
+
+    @Override
+    protected void initComps(ContainerConfig.Configuration cfg) throws ContainerException {
+        super.initComps(cfg);
+        consumeProp = cfg.getProperty("consume");
+        produceProp = cfg.getProperty("produce");
+    }
 
     @Override
     public boolean start() throws ContainerException {
@@ -66,16 +79,19 @@ public class Hubs extends SrvBase {
             }
         });
 
+        String consume=consumeProp==null?"sagas":consumeProp.value();
+        String produce=produceProp==null?"sagasEvent":produceProp.value();
+
         // infoConsumer = new InfoConsumer("sagasConsumer");
         infoConsumer = new InfoConsumer(InfoConsumer.InforConfig.builder()
-                .subscribeTopics(new String[]{"sagas"})
-                .sinkTopic("sagasEvent")
+                .subscribeTopics(new String[]{consume})
+                .sinkTopic(produce)
                 .build());
         infoConsumer.serve();
 
         initFuncs();
 
-        System.out.println(" [✔] Hubs started");
+        System.out.format(" [✔] Hubs started, consume %s, produce %s\n", consume, produce);
         return true;
     }
 

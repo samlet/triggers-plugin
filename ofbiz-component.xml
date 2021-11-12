@@ -56,5 +56,8 @@ under the License.
         <property name="bound-host" value="0.0.0.0"/>
         <property name="bound-port" value="9999"/>
         <property name="delegator-name" value="default"/>
+        <property name="consume" value="bluecc-in"/>
+        <property name="produce" value="bluecc-out"/>
     </container>
+
 </ofbiz-component>

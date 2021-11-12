@@ -10,6 +10,8 @@ import org.apache.ofbiz.service.DispatchContext;
 import org.apache.ofbiz.service.GenericServiceException;
 import org.apache.ofbiz.service.ModelService;
 import org.apache.ofbiz.service.ServiceDispatcher;
+import org.apache.ofbiz.service.eca.ServiceEcaRule;
+import org.apache.ofbiz.service.eca.ServiceEcaUtil;
 import org.apache.ofbiz.service.group.GroupModel;
 import org.apache.ofbiz.service.group.GroupServiceModel;
 import org.apache.ofbiz.service.group.ServiceGroupEngine;
@@ -29,12 +31,13 @@ public class ServiceModels {
         this.platform = platform;
     }
 
-    public Map<String, Map<String, List<EntityEcaRule>>> getEcaRules() {
-        Map<String, Map<String, List<EntityEcaRule>>> ecaCache =
-                EntityEcaUtil.getEntityEcaCache(EntityEcaUtil.getEntityEcaReaderName(
-                        platform.getDelegator().getDelegatorName()));
-        return ecaCache;
-        // Map<String, List<EntityEcaRule>> eventMap = ecaCache.get(entityName);
+    public Map<String, Map<String, List<ServiceEcaRule>>> getEcaRules() {
+        if (ServiceEcaUtil.ecaCache == null) ServiceEcaUtil.readConfig();
+        return ServiceEcaUtil.ecaCache;
+    }
+
+    public Map<String, List<ServiceEcaRule>> getServiceEventMap(String serviceName) {
+        return getEcaRules().get(serviceName);
     }
 
     @Data

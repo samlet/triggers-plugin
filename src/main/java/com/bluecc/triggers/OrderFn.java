@@ -8,6 +8,7 @@ import org.apache.ofbiz.entity.Delegator;
 import org.apache.ofbiz.entity.GenericValue;
 import org.apache.ofbiz.service.GenericServiceException;
 import org.apache.ofbiz.service.ServiceUtil;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -104,24 +105,7 @@ public class OrderFn extends FnBase {
             orderAdjustments.add(orderAdjustment);
             ctx.put("orderAdjustments", orderAdjustments);
 
-            List<GenericValue> orderItems = new LinkedList<>();
-            GenericValue orderItem = delegator.makeValue("OrderItem", UtilMisc.toMap("orderItemSeqId", "00001", "orderItemTypeId", "PRODUCT_ORDER_ITEM",
-                    "prodCatalogId", "DemoCatalog", "productId", "GZ-2644", "quantity", BigDecimal.ONE, "selectedAmount", BigDecimal.ZERO));
-            orderItem.set("isPromo", "N");
-            orderItem.set("isModifiedPrice", "N");
-            orderItem.set("unitPrice", new BigDecimal("38.4"));
-            orderItem.set("unitListPrice", new BigDecimal("48.0"));
-            orderItem.set("statusId", "ITEM_CREATED");
-            orderItems.add(orderItem);
-
-            orderItem = delegator.makeValue("OrderItem", UtilMisc.toMap("orderItemSeqId", "00002", "orderItemTypeId", "PRODUCT_ORDER_ITEM",
-                    "prodCatalogId", "DemoCatalog", "productId", "GZ-1006-1", "quantity", BigDecimal.ONE, "selectedAmount", BigDecimal.ZERO));
-            orderItem.set("isPromo", "N");
-            orderItem.set("isModifiedPrice", "N");
-            orderItem.set("unitPrice", new BigDecimal("1.99"));
-            orderItem.set("unitListPrice", new BigDecimal("5.99"));
-            orderItem.set("statusId", "ITEM_CREATED");
-            orderItems.add(orderItem);
+            List<GenericValue> orderItems = salesOrderItemsStuff(delegator);
 
             ctx.put("orderItems", orderItems);
 
@@ -143,6 +127,29 @@ public class OrderFn extends FnBase {
         };
     }
 
+    @NotNull
+    private List<GenericValue> salesOrderItemsStuff(Delegator delegator) {
+        List<GenericValue> orderItems = new LinkedList<>();
+        GenericValue orderItem = delegator.makeValue("OrderItem", UtilMisc.toMap("orderItemSeqId", "00001", "orderItemTypeId", "PRODUCT_ORDER_ITEM",
+                "prodCatalogId", "DemoCatalog", "productId", "GZ-2644", "quantity", BigDecimal.ONE, "selectedAmount", BigDecimal.ZERO));
+        orderItem.set("isPromo", "N");
+        orderItem.set("isModifiedPrice", "N");
+        orderItem.set("unitPrice", new BigDecimal("38.4"));
+        orderItem.set("unitListPrice", new BigDecimal("48.0"));
+        orderItem.set("statusId", "ITEM_CREATED");
+        orderItems.add(orderItem);
+
+        orderItem = delegator.makeValue("OrderItem", UtilMisc.toMap("orderItemSeqId", "00002", "orderItemTypeId", "PRODUCT_ORDER_ITEM",
+                "prodCatalogId", "DemoCatalog", "productId", "GZ-1006-1", "quantity", BigDecimal.ONE, "selectedAmount", BigDecimal.ZERO));
+        orderItem.set("isPromo", "N");
+        orderItem.set("isModifiedPrice", "N");
+        orderItem.set("unitPrice", new BigDecimal("1.99"));
+        orderItem.set("unitListPrice", new BigDecimal("5.99"));
+        orderItem.set("statusId", "ITEM_CREATED");
+        orderItems.add(orderItem);
+        return orderItems;
+    }
+
     @Bean
     Function<String, OrderResult> purchaseOrder() {
         return target -> {
@@ -153,33 +160,12 @@ public class OrderFn extends FnBase {
             ctx.put("currencyUom", "USD");
             ctx.put("productStoreId", "9000");
 
-            GenericValue orderItem = delegator.makeValue("OrderItem", UtilMisc.toMap("orderItemSeqId", "00001", "orderItemTypeId",
-                    "PRODUCT_ORDER_ITEM", "prodCatalogId", "DemoCatalog", "productId", "GZ-1000", "quantity", new BigDecimal("2"), "isPromo", "N"));
-            orderItem.set("unitPrice", new BigDecimal("1399.5"));
-            orderItem.set("unitListPrice", BigDecimal.ZERO);
-            orderItem.set("isModifiedPrice", "N");
-            orderItem.set("statusId", "ITEM_CREATED");
-            List<GenericValue> orderItems = new LinkedList<>();
-            orderItems.add(orderItem);
+            List<GenericValue> orderItems = purchaseOrderItems(delegator);
             ctx.put("orderItems", orderItems);
 
-            GenericValue orderContactMech = delegator.makeValue("OrderContactMech", UtilMisc.toMap("contactMechPurposeTypeId",
-                    "SHIPPING_LOCATION", "contactMechId", "9000"));
-            List<GenericValue> orderContactMechs = new LinkedList<>();
-            orderContactMechs.add(orderContactMech);
-            ctx.put("orderContactMechs", orderContactMechs);
+            setPurchaseOrderAndItemsContractMech(delegator, ctx);
 
-            GenericValue orderItemContactMech = delegator.makeValue("OrderItemContactMech", UtilMisc.toMap("contactMechPurposeTypeId",
-                    "SHIPPING_LOCATION", "contactMechId", "9000", "orderItemSeqId", "00001"));
-            List<GenericValue> orderItemContactMechs = new LinkedList<>();
-            orderItemContactMechs.add(orderItemContactMech);
-            ctx.put("orderItemContactMechs", orderItemContactMechs);
-
-            GenericValue orderItemShipGroup = delegator.makeValue("OrderItemShipGroup", UtilMisc.toMap("carrierPartyId", "UPS",
-                    "contactMechId", "9000", "isGift", "N", "maySplit", "N", "shipGroupSeqId", "00001", "shipmentMethodTypeId", "NEXT_DAY"));
-            orderItemShipGroup.set("carrierRoleTypeId", "CARRIER");
-            List<GenericValue> orderItemShipGroupInfo = new LinkedList<>();
-            orderItemShipGroupInfo.add(orderItemShipGroup);
+            List<GenericValue> orderItemShipGroupInfo = purchaseOrderItemShip(delegator);
             ctx.put("orderItemShipGroupInfo", orderItemShipGroupInfo);
 
             List<GenericValue> orderTerms = new LinkedList<>();
@@ -196,6 +182,43 @@ public class OrderFn extends FnBase {
 
             return storeAndGetOrderResult(ctx);
         };
+    }
+
+    @NotNull
+    private List<GenericValue> purchaseOrderItemShip(Delegator delegator) {
+        GenericValue orderItemShipGroup = delegator.makeValue("OrderItemShipGroup", UtilMisc.toMap("carrierPartyId", "UPS",
+                "contactMechId", "9000", "isGift", "N", "maySplit", "N", "shipGroupSeqId", "00001", "shipmentMethodTypeId", "NEXT_DAY"));
+        orderItemShipGroup.set("carrierRoleTypeId", "CARRIER");
+        List<GenericValue> orderItemShipGroupInfo = new LinkedList<>();
+        orderItemShipGroupInfo.add(orderItemShipGroup);
+        return orderItemShipGroupInfo;
+    }
+
+    private void setPurchaseOrderAndItemsContractMech(Delegator delegator, Map<String, Object> ctx) {
+        GenericValue orderContactMech = delegator.makeValue("OrderContactMech", UtilMisc.toMap("contactMechPurposeTypeId",
+                "SHIPPING_LOCATION", "contactMechId", "9000"));
+        List<GenericValue> orderContactMechs = new LinkedList<>();
+        orderContactMechs.add(orderContactMech);
+        ctx.put("orderContactMechs", orderContactMechs);
+
+        GenericValue orderItemContactMech = delegator.makeValue("OrderItemContactMech", UtilMisc.toMap("contactMechPurposeTypeId",
+                "SHIPPING_LOCATION", "contactMechId", "9000", "orderItemSeqId", "00001"));
+        List<GenericValue> orderItemContactMechs = new LinkedList<>();
+        orderItemContactMechs.add(orderItemContactMech);
+        ctx.put("orderItemContactMechs", orderItemContactMechs);
+    }
+
+    @NotNull
+    private List<GenericValue> purchaseOrderItems(Delegator delegator) {
+        GenericValue orderItem = delegator.makeValue("OrderItem", UtilMisc.toMap("orderItemSeqId", "00001", "orderItemTypeId",
+                "PRODUCT_ORDER_ITEM", "prodCatalogId", "DemoCatalog", "productId", "GZ-1000", "quantity", new BigDecimal("2"), "isPromo", "N"));
+        orderItem.set("unitPrice", new BigDecimal("1399.5"));
+        orderItem.set("unitListPrice", BigDecimal.ZERO);
+        orderItem.set("isModifiedPrice", "N");
+        orderItem.set("statusId", "ITEM_CREATED");
+        List<GenericValue> orderItems = new LinkedList<>();
+        orderItems.add(orderItem);
+        return orderItems;
     }
 
     private OrderResult storeAndGetOrderResult(Map<String, Object> ctx) {
