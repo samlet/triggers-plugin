@@ -33,21 +33,23 @@ public class InfoProducer {
         this.isAsync = isAsync;
     }
 
-    public void send(String messageStr) {
+    public void send(String messageStr, byte[] callid) {
         long messageNumber = messageNo.getAndIncrement();
+        long startTime = System.currentTimeMillis();
+        ProducerRecord<String, String> rec = new ProducerRecord<>(topic,
+                Long.toString(messageNumber), messageStr);
+        rec.headers().add("serial", Long.toString(messageNumber).getBytes(StandardCharsets.UTF_8));
+        if(callid!=null) {
+            rec.headers().add("callid", callid);
+        }
+
         if (isAsync) { // Send asynchronously
-            long startTime = System.currentTimeMillis();
-            ProducerRecord<String, String> rec = new ProducerRecord<>(topic,
-                    Long.toString(messageNumber), messageStr);
-            rec.headers().add("serial", Long.toString(messageNumber).getBytes(StandardCharsets.UTF_8));
             producer.send(rec,
                     new KafkaCallBack(startTime, messageNumber, messageStr));
         } else { // Send synchronously
             try {
-                producer.send(new ProducerRecord<String, String>(topic,
-                        Long.toString(messageNumber),
-                        messageStr)).get();
-                System.out.println("Sent message: (" + messageStr + ")");
+                producer.send(rec).get();
+                Debug.logInfo("Sent message: (" + messageStr + ")", MODULE);
             } catch (InterruptedException | ExecutionException e) {
                 // e.printStackTrace();
                 // handle the exception

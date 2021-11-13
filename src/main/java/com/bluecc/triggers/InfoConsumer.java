@@ -109,6 +109,7 @@ public class InfoConsumer implements Runnable {
                     String cntType="text/yaml";
                     String dataType="String";
                     String fn="";
+                    byte[] callid=null;
                     for (Header header : record.headers()) {
                         if (header.key().equals("type") ) {
                             String val = new String(header.value(), StandardCharsets.UTF_8);
@@ -128,6 +129,11 @@ public class InfoConsumer implements Runnable {
                             fn = new String(header.value(), StandardCharsets.UTF_8);
                             System.out.format("\t%s = %s\n", header.key(), dataType);
                         }
+                        if(header.key().equals("callid")){
+                            callid = header.value();
+                            System.out.format("\t%s = %s\n", header.key(),
+                                    new String(header.value(), StandardCharsets.UTF_8));
+                        }
                     }
 
                     if(cntType.equals("text/yaml")) {
@@ -143,7 +149,7 @@ public class InfoConsumer implements Runnable {
                             fn = ((Map<?, ?>) values).keySet().stream().findFirst().get().toString();
                             Debug.logInfo("invoke %s with %s", MODULE, fn, valueType);
                             Object result = Hubs.HUBS.process(fn, valueType);
-                            sendResult(fn, result);
+                            sendResult(fn, result, callid);
                         } else if (values instanceof List) {
                             System.out.println("list: " + values);
                         } else if (values instanceof String) {
@@ -155,7 +161,7 @@ public class InfoConsumer implements Runnable {
                         System.out.println(record.value());
                         if(!fn.isEmpty()){
                             Object result = Hubs.HUBS.processRaw(fn, record.value());
-                            sendResult(fn, result);
+                            sendResult(fn, result, callid);
                         }
                     }else{
                         Debug.logWarning("Cannot handle content-type %s", MODULE, cntType);
@@ -171,14 +177,14 @@ public class InfoConsumer implements Runnable {
         System.out.println(".. Oops, stop info-consumer");
     }
 
-    private void sendResult(String fn, Object result) {
+    private void sendResult(String fn, Object result, byte[] callid) {
         String resultJson = gson.toJson(ResultData.builder()
                 .resultStatus("ok")
                 .caller(fn)
                 .data(result)
                 .build());
         System.out.println(">> invoke result: " + resultJson);
-        producer.send(resultJson);
+        producer.send(resultJson, callid);
     }
 
     public void serve() {
