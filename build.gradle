@@ -17,6 +17,13 @@
  * under the License.
  */
 
+
+//def grpcVersion = '1.37.0' // CURRENT_GRPC_VERSION
+def grpcVersion = '1.40.1'
+//def protobufVersion = '3.12.0'
+def protobufVersion = '3.17.2'
+def protocVersion = protobufVersion
+
 dependencies {
     pluginLibsCompile 'com.rabbitmq:amqp-client:5.11.0'
     pluginLibsCompile 'com.orbitz.consul:consul-client:1.5.1'
@@ -25,6 +32,19 @@ dependencies {
     pluginLibsCompile 'org.apache.kafka:kafka-clients:3.0.0'
     // https://mvnrepository.com/artifact/org.reflections/reflections
     pluginLibsCompile 'org.reflections:reflections:0.10.2'
+
+    // deps
+    pluginLibsCompile 'com.bluecc:base:1.0-SNAPSHOT'
+
+    // for grpc -------
+    pluginLibsCompile "io.grpc:grpc-protobuf:${grpcVersion}"
+    pluginLibsCompile "io.grpc:grpc-stub:${grpcVersion}"
+//    pluginLibsCompile "io.jsonwebtoken:jjwt:0.9.1"
+    pluginLibsCompile "javax.xml.bind:jaxb-api:2.3.1"
+    // need this for JsonFormat
+    pluginLibsCompile "com.google.protobuf:protobuf-java-util:${protobufVersion}"
+
+    pluginLibsRuntime "io.grpc:grpc-netty-shaded:${grpcVersion}"
 
     //pluginLibsCompile 'junit:junit-dep:4.10'
     //pluginLibsRuntime 'junit:junit-dep:4.10'

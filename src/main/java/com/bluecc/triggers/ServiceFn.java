@@ -27,6 +27,7 @@ public class ServiceFn extends FnBase{
     @Data
     @Builder
     public static class ServiceResult{
+        String serviceName;
         String result;
         Map<String, Object> serviceOutputParams;
         String message;
@@ -40,12 +41,14 @@ public class ServiceFn extends FnBase{
                 Map<String, Object> ctx=request.getServiceInParams();
                 Map<String, Object> data= requester.responseAsJson(request.getServiceName(), ctx, getUserLogin());
                 return ServiceResult.builder()
+                        .serviceName(request.getServiceName())
                         .result(ServiceUtil.isSuccess(data)?"ok":"fail")
                         .serviceOutputParams(data)
                         .build();
             } catch (GenericServiceException|GenericEntityException e) {
                 Debug.logError(e, e.getMessage(), MODULE);
                 return ServiceResult.builder()
+                        .serviceName(request.getServiceName())
                         .result("fail")
                         .message(e.getMessage())
                         .build();
